@@ -2,7 +2,7 @@
 
 setwd("/Users/roxannebanker/bioinformatics/projects/oyster-oa/microbiome/")
 
-# prepping for GIT
+
 
 # February 2020
 # Document to analyze oyster larvae/juvenile data from 
