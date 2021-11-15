@@ -1,14 +1,16 @@
-#rm(list = ls())
+rm(list = ls())
 
-setwd("/Users/roxannebanker/bioinformatics/projects/oyster-oa/microbiome/")
+save.image("~/Documents/Bioinformatics/oyster-oa/microbiome/molybdate_ms_dat.RData")
+load("~/Documents/Bioinformatics/oyster-oa/microbiome/molybdate_ms_dat.RData")
+
+setwd("/home/rbanker/Documents/Bioinformatics/oyster-oa/microbiome/")
 
 
 
 # February 2020
 # Document to analyze oyster larvae/juvenile data from 
 # Oyster multi-omics project run in Aug-Oct 2019
-# Following this tutorial: https://benjjneb.github.io/dada2/tutorial.html
-# and the Harbor_R_Notebook from Cassie Ettinger
+# Following some of this tutorial: https://benjjneb.github.io/dada2/tutorial.html
 
 # loading in required packages
 
@@ -40,6 +42,9 @@ library(gtable)
 library(grid)
 library(ALDEx2)
 library(dplyr)
+library(lme4)
+library(blme)
+library(lmerTest)
 
 set.seed(5311)
 
@@ -121,119 +126,18 @@ alpha.measure.final <- full_join(alpha.measure, mapping, by = c("sample_name" = 
 alpha.measure.final <- na.omit(alpha.measure.final)
 
 
-# treatment level summary
-observed.treat <- summarySE(alpha.measure.final, measurevar="Observed", groupvars=c("treatment"))
-shannon.treat <- summarySE(alpha.measure.final, measurevar="Shannon", groupvars=c("treatment"))
-
-
-# don't think I will need this, can delete later
-# factor ordering so the x axis is in the order i want
-#observed.treat$treatment <- factor(observed.treat$treatment,levels = c("larvae", "control", "low-ph", "molybdate"))
-
 alpha.cols <- c("#721F81FF", "#B63679FF", "#F1605DFF", "#FEAF77FF", "#FCFDBFFF")
-
-#"#721F81FF", "#B63679FF", "#F1605DFF", "#FEAF77FF", "#FCFDBFFF"
-
-observed.treat.plot <-
-  ggplot(observed.treat, aes(x=treatment, y=Observed, fill=treatment))+
-  geom_bar(stat="identity") +
-  geom_errorbar(aes(ymin=Observed-se, ymax=Observed+se),
-                width=.1, size=0.4,                    # Width of the error bars
-                position=position_dodge(.9)) +
-  theme_bw() +
-  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
-        panel.background = element_blank(), legend.position = "none") +
-  scale_fill_manual(values=alpha.cols[3:4]) +
-  scale_x_discrete(breaks=c("control","molybdate"),
-                   labels=c("Control","Sodium \nMolybdate")) +
-  xlab("") + ylab("Observed ASVs")
-
-shannon.treat.plot <-
-  ggplot(shannon.treat, aes(x=treatment, y=Shannon, fill=treatment))+
-  geom_bar(stat="identity") +
-  geom_errorbar(aes(ymin=Shannon-se, ymax=Shannon+se),
-                width=.1, size=0.4,                    # Width of the error bars
-                position=position_dodge(.9)) +
-  theme_bw() +
-  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
-        panel.background = element_blank(), legend.position = "none") +
-  scale_fill_manual(values=alpha.cols[3:4]) +
-  scale_x_discrete(breaks=c("control","molybdate"),
-                   labels=c("Control","Sodium \nMolybdate")) +
-  xlab("") + ylab("Shannon Index")
-
-
-
-# bucket level summary
-observed.bucket <- summarySE(alpha.measure.final, measurevar="Observed", groupvars=c("bucket.id","treatment"))
-shannon.bucket <- summarySE(alpha.measure.final, measurevar="Shannon", groupvars=c("bucket.id","treatment"))
-
 
 alpha.breaks <- as.character(observed.bucket$bucket.id)
 alpha.ids <- c("C38-1",  "C38-2",  "C51", 
                "SM38-1", "SM38-2", "SM51")
 
-# factor ordering so the x axis is in the order i want
-observed.bucket$bucket.id <- factor(observed.bucket$bucket.id,levels = c("C1", "C2", "C3", "SM1", "SM2", "SM3"))
-
-
-# bucket level graphs
-observed.bucket.plot <- 
-  ggplot(observed.bucket, aes(x=bucket.id, y=Observed, fill=treatment))+
-  geom_bar(stat="identity") +
-  geom_errorbar(aes(ymin=Observed-se, ymax=Observed+se),
-                width=.1, size=0.4,                    # Width of the error bars
-                position=position_dodge(.9)) +
-  theme_bw() +
-  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
-        panel.background = element_blank(),
-        legend.position = "none") +
-  scale_fill_manual(values=alpha.cols[3:4]) +
-  scale_x_discrete(breaks=c("C1", "C2", "C3", "SM1", "SM2", "SM3"),
-                   labels=c("C-1", "C-2", "C-3", "SM-1", "SM-2", "SM-3")) +
-  xlab("") + ylab("Observed ASVs")
-  
-  
-
-# factor ordering so the x axis is in the order i want
-shannon.bucket$bucket.id <- factor(shannon.bucket$bucket.id,levels = c("C1", "C2", "C3","SM1", "SM2", "SM3"))
-
-shannon.bucket.plot <- 
-  ggplot(shannon.bucket, aes(x=bucket.id, y=Shannon, fill=treatment))+
-  geom_bar(stat="identity") +
-  geom_errorbar(aes(ymin=Shannon-se, ymax=Shannon+se),
-                width=.1, size=0.4,                    # Width of the error bars
-                position=position_dodge(.9)) +
-  theme_bw() +
-  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
-        panel.background = element_blank(),
-        legend.position = "none") +
-  scale_fill_manual(values=alpha.cols[3:4], labels=c("Control"," Sodium \nMolybdate")) +
-  scale_x_discrete(breaks=c("C1", "C2", "C3", "SM1", "SM2", "SM3"),
-                   labels=c("C-1", "C-2", "C-3", "SM-1", "SM-2", "SM-3")) +
-  xlab("") + ylab("Shannon Index")
-
-
-# get onto one image, both plots same size
-g1a <- ggplotGrob(observed.treat.plot)
-g1b <- ggplotGrob(shannon.treat.plot)
-g1 <- rbind(g1a, g1b, size = "first")
-
-g2a <- ggplotGrob(observed.bucket.plot) # if this function does not work at first, reload the ggplot2 package then run.
-g2b <- ggplotGrob(shannon.bucket.plot)
-g2 <- rbind(g2a, g2b, size = "first")
-
-g3 <- cbind(g1, g2)
-
-#g3$widths <- unit.pmax(g1$widths, g2$widths)
-grid.newpage()
-grid.draw(g3)
-
-
 
 
 # Alpha Diversity Statistics
 
+
+# KW tests outdated, now using linear mixed model
 # bucket ID
 kruskal.test(Shannon ~ bucket.id, data=alpha.measure.final)
 #kruskal_test(Shannon ~ bucket.id, distribution = approximate(nresample = 9999), data=alpha.measure.final) # this call isnot working, back to the original that actually works
@@ -258,6 +162,84 @@ kruskal.test(Shannon ~ treatment, data=alpha.measure.final)
 kruskal.test(Observed ~ treatment, data=alpha.measure.final)
 # Kruskal-Wallis chi-squared = 0.22689, df = 1, p-value = 0.6338
 
+
+# June 11 2021
+# trying a mixed linear model
+# https://ourcodingclub.github.io/tutorials/mixed-models/
+
+
+# Playing around with using a linear mixed model
+# lmm.alpha <- filter(alpha.measure.final, bucket.replicate != 3)
+# 
+# # random intercept random slope Observed
+# mixed.model.alpha1 <- blmer(Observed ~ (1|bucket.id), data=lmm.alpha, cov.prior=invwishart)
+# mixed.model.alpha2 <- blmer(Observed ~ treatment + (1+treatment|bucket.id), data=lmm.alpha, cov.prior=invwishart)
+# 
+# # mixed.model.alpha.0 <- lmer(Observed ~ (1|bucket.id), data=lmm.alpha, REML=T)
+# # mixed.model.alpha.1 <- lmer(Observed ~ treatment + (1|bucket.id), data=lmm.alpha, REML=T)
+# 
+# summary(mixed.model.alpha)
+# bpvals <- parameters::p_value(mixed.model.alpha)
+# bpvals
+# 
+# plot(mixed.model.alpha)
+# qqnorm(resid(mixed.model.alpha))
+# qqline(resid(mixed.model.alpha))
+# 
+# # random intercept random slope Shannon
+# mixed.model.shannon <- blmer(Shannon ~ treatment + (1+treatment|bucket.id), data=lmm.alpha, cov.prior=invwishart)
+# 
+# summary(mixed.model.shannon)
+# bpvals <- parameters::p_value(mixed.model.shannon)
+# bpvals
+# 
+# plot(mixed.model.alpha)
+# qqnorm(resid(mixed.model.alpha))
+# qqline(resid(mixed.model.alpha))
+
+
+
+# affects slope and intercept
+# mixed.slope.obs <- lmer(Observed ~ treatment + (1 + treatment|group/bucket.id), data = alpha.measure.final) 
+# summary(mixed.slope.obs)
+
+# Creating vectors of names that will be used as labels in the ggplot commands below
+supp.labs <- c("38-Days", "51-Days")
+names(supp.labs) <- c("38", "51")
+
+ab<-ggplot(alpha.measure.final, aes(x=bucket.id, y=Observed, fill=treatment))+
+  geom_boxplot(outlier.color="white") + geom_point() +
+  theme(legend.title=element_blank()) + 
+  theme_bw() + 
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        legend.position="none") +
+  xlab("Treatment") + ylab("Observed ASVs") +
+  facet_grid(.~age, scales="free", labeller = labeller(age = supp.labs)) +
+  scale_fill_manual(values = magma(5)[3:5] ) +
+  scale_x_discrete(breaks=c("C1","C2", "C3", "SM1", "SM2", "SM3"),
+                   labels=c("C-38D-1","C-38D-2", "C-51D-3", "SM-38D-1", "SM-38D-2","SM-51D-3")) 
+ab
+
+bc<-ggplot(alpha.measure.final, aes(x=bucket.id, y=Shannon, fill=treatment))+
+  geom_boxplot(outlier.color="white") + geom_point() +
+  theme(legend.title=element_blank()) + 
+  theme_bw() + 
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        legend.position="none") +
+  xlab("Treatment") + ylab("Shannond Index") +
+  facet_grid(.~age, scales="free", labeller = labeller(age = supp.labs)) +
+  scale_fill_manual(values = magma(5)[3:5] ) +
+  scale_x_discrete(breaks=c("C1","C2", "C3", "SM1", "SM2", "SM3"),
+                   labels=c("C-38D-1","C-38D-2", "C-51D-3", "SM-38D-1", "SM-38D-2","SM-51D-3")) 
+
+# get onto one image, both plots same size
+xx <- ggplotGrob(ab)
+yy <- ggplotGrob(bc)
+zz <- rbind(xx, yy)
+
+#g3$widths <- unit.pmax(g1$widths, g2$widths)
+grid.newpage()
+grid.draw(zz)
 
 
 
@@ -336,10 +318,22 @@ ord.nmds.bray <- ordinate(ps.final, method="NMDS", distance="bray")
 ord.nmds.bray
 
 
-bucket.labs <- c("C-1", "C-2", "C-3", "SM-1", "SM-2", "SM-3")
+#bucket.labs <- c("C-1", "C-2", "C-3", "SM-1", "SM-2", "SM-3")
 
-bucket.shapes <-c(19, 19, 17,
-                  19, 19, 17)
+bucket.labs <- c("C-38D-1","C-38D-2", "C-51D-3", "SM-38D-1", "SM-38D-2","SM-51D-3")
+
+bucket.shapes <-c(17, 17, 17,
+                  19, 19, 19)
+
+#magma(9)[3:8]
+
+# bucket.cols <- c("#bae4b3", "#74c476", "#238b45",
+#                  "#bcbddc", "#807dba", "#6a51a3")
+
+bucket.cols <- c("#fa9fb5", "#c51b8a", "#7a0177",
+                 "#fed976", "#fd8d3c", "#f03b20")
+
+
 
 plot_ordination(ps.final, ord.nmds.bray, shape="bucket.id", color="bucket.id") +
   geom_point(size = 4) +
@@ -348,12 +342,17 @@ plot_ordination(ps.final, ord.nmds.bray, shape="bucket.id", color="bucket.id") +
   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
   scale_colour_manual(name = "Bucket ID",
                       labels = bucket.labs,
-                      values = magma(9)[3:8]) +   
+                      values = bucket.cols ) +   
   scale_shape_manual(name = "Bucket ID",
                      labels = bucket.labs,
                      values = bucket.shapes) +
-  annotate(geom="text", x=.33, y=-0.25, label="Stress = 0.089", color="black")
+  annotate(geom="text", x=.33, y=-0.25, label="Stress = 0.089", color="black") 
+
+
+
   
+
+
 
 
 # Ordination Statistics
@@ -592,12 +591,13 @@ write.table(df_taxa, 'SM_Treatment_VST_Mean_FAM_KW.txt', sep="\t")
 #################################################################
 
 
+
 # Treatments/Age
 # Comparison on means, KW, Dunn 
 #################################################################
 
 
-#collapse ASVs at family level
+#collapse ASVs at Order level
 AvgRA_o = tax_glom(ps.final, taxrank="Order", NArm = FALSE)
 
 #filter out taxa that don't vary > 0.2 %
@@ -682,61 +682,103 @@ write.csv(df_taxa, 'SM_treat-time_VST_Mean_FAM_KW_Dunn_OI.csv')
 
 #group and calculate mean, sd and se for different taxonomic levels
 groups <- group_by(df_o, group, Phylum, Class, Order)
+buckets <- group_by(df_o, bucket.id, Phylum, Class, Order)
+head(groups)
+
 groups_avgs <- dplyr::summarise(groups, mean=mean(Abundance), sd=sd(Abundance), se=se(Abundance))
 
-avgs_0p <- filter(groups_avgs, mean > 0)
+buckets_avgs <- dplyr::summarise(buckets, mean=mean(Abundance), sd=sd(Abundance), se=se(Abundance))
+
+# old code, go to next section
+# avgs_0p <- filter(groups_avgs, mean > 0)
+# 
+# 
+# # new df, change families
+# avgs_f <- avgs_0p
+# avgs_f$Order <- factor(avgs_f$Order)
+# avgs_f <- na.omit(avgs_f)
+# # remove families with %<5
+# avgs_5 <- filter(avgs_f, mean > 5)
+# avgs_3 <- filter(avgs_f, mean > 3)
+# avgs_2 <- filter(avgs_f, mean > 2)
+# avgs_1.5 <- filter(avgs_f, mean > 1.5)
+# avgs_1 <- filter(avgs_f, mean > 1)
+# 
+# 
+# 
+# # New facet label names for treatment variable
+# ad_labeller <- as_labeller( c("control" = "Control",
+#                               "larvae" = "Larva",
+#                               "low-ph" = "Low-pH",
+#                               "molybdate" = "Sodium Molybdate") )
+# 
+# # 12 colors
+# col_12 <- c('#a6cee3','#1f78b4','#b2df8a','#33a02c','#fb9a99','#e31a1c','#fdbf6f','#ff7f00','#cab2d6','#6a3d9a','#ffff99','#b15928')
+# 
+# 
+# # 16 colors
+# col_16 <- c('#a6cee3','#1f78b4','#b2df8a','#33a02c','#fb9a99','#e31a1c','#fdbf6f',
+#             '#ff7f00','#cab2d6','#6a3d9a','#ffff99','#b15928','#999999','#4d4d4d',
+#             '#c994c7','#df65b0')
+# 
+# 
+# alpha.breaks <- unique(avgs_f$group)
+# 
+# alpha.ids <- c("[C-1+C-2]",  "[C-3]",
+#                "[SM-1+SM-2]", "[SM-3]")
+# 
+# # All treatments
+# 
+# ggplot(avgs_1.5, aes(x=group, y=mean, fill=Order))+
+#   geom_bar(stat="identity", position = "dodge", color="black") +
+#   geom_errorbar(aes(ymin=(mean-se), ymax=(mean+se)),
+#                 width=.4, position=position_dodge(.9)) +
+#   theme(legend.title=element_blank()) + 
+#   theme_bw() + 
+#   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+#         axis.text.x = element_text(face="bold"),
+#         legend.position="bottom") +
+#   xlab("Treatment-Age") + ylab("Mean Percent Abundance") +
+#   scale_fill_manual(values = col_16) +
+#   coord_cartesian(ylim = c(1.5,32)) +
+#   scale_x_discrete(breaks=alpha.breaks,
+#                    labels=alpha.ids) 
 
 
-# new df, change families
-avgs_f <- avgs_0p
-avgs_f$Order <- factor(avgs_f$Order)
-avgs_f <- na.omit(avgs_f)
-# remove families with %<5
-avgs_5 <- filter(avgs_f, mean > 5)
-avgs_3 <- filter(avgs_f, mean > 3)
-avgs_2 <- filter(avgs_f, mean > 2)
-avgs_1.5 <- filter(avgs_f, mean > 1.5)
-avgs_1 <- filter(avgs_f, mean > 1)
+#################################################################
 
 
 
-# New facet label names for treatment variable
-ad_labeller <- as_labeller( c("control" = "Control",
-                              "larvae" = "Larva",
-                              "low-ph" = "Low-pH",
-                              "molybdate" = "Sodium Molybdate") )
 
-# 12 colors
-col_12 <- c('#a6cee3','#1f78b4','#b2df8a','#33a02c','#fb9a99','#e31a1c','#fdbf6f','#ff7f00','#cab2d6','#6a3d9a','#ffff99','#b15928')
+# Taxonomic bar chart figure take 2: Aug 9 2021
+#################################################################
 
-
-# 16 colors
-col_16 <- c('#a6cee3','#1f78b4','#b2df8a','#33a02c','#fb9a99','#e31a1c','#fdbf6f',
-            '#ff7f00','#cab2d6','#6a3d9a','#ffff99','#b15928','#999999','#4d4d4d',
-            '#c994c7','#df65b0')
+orders <- c("Thiohalorhabdales",
+            "Clostridiales",
+            "Thermoanaerobaculales",
+            "Caulobacterales",
+            "Arenicellales",
+            "Babeliales")
 
 
-alpha.breaks <- unique(avgs_f$group)
+# groups_avgs was created above, groups melted by order
+sig_orders <- filter(buckets_avgs, Order %in% orders)
 
-alpha.ids <- c("[C-1+C-2]",  "[C-3]",
-               "[SM-1+SM-2]", "[SM-3]")
 
-# All treatments
-
-ggplot(avgs_1.5, aes(x=group, y=mean, fill=Order))+
+ggplot(sig_orders, aes(x=bucket.id, y=mean, fill=Order))+
   geom_bar(stat="identity", position = "dodge", color="black") +
   geom_errorbar(aes(ymin=(mean-se), ymax=(mean+se)),
                 width=.4, position=position_dodge(.9)) +
   theme(legend.title=element_blank()) + 
   theme_bw() + 
-  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+  theme(panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
         axis.text.x = element_text(face="bold"),
         legend.position="bottom") +
   xlab("Treatment-Age") + ylab("Mean Percent Abundance") +
-  scale_fill_manual(values = col_16) +
-  coord_cartesian(ylim = c(1.5,32)) +
-  scale_x_discrete(breaks=alpha.breaks,
-                   labels=alpha.ids) 
+  scale_fill_manual(values = viridis(6)) +
+  scale_x_discrete(breaks=c("C1","C2", "C3", "SM1", "SM2", "SM3"),
+                 labels=c("C-38D-1", "C-38D-2", "C-51D-3", "SM-38D-1", "SM-38D-2", "SM-51D-3")) 
 
 
 #################################################################
@@ -749,68 +791,141 @@ ggplot(avgs_1.5, aes(x=group, y=mean, fill=Order))+
 
 ps.sulf <- subset_taxa(ps.final, Class==c("Deltaproteobacteria"))
 
-AvgRA_sulf_f = tax_glom(ps.sulf, taxrank="Family", NArm = FALSE)
+ps.sulf.2 <- merge_phyloseq(ex1,ex4)
+
+AvgRA_sulf_f = tax_glom(ps.sulf.2, taxrank="Family", NArm = FALSE)
 
 df_sulf <- psmelt(AvgRA_sulf_f)
 
 #group and calculate mean, sd and se for different taxonomic levels
-grouped_sulf <- group_by(df_sulf, group, Phylum, Class, Order, Family)
+grouped_sulf <- group_by(df_sulf, bucket.id, Phylum, Class, Order, Family)
 avgs_sulf <- dplyr::summarise(grouped_sulf, mean=mean(Abundance), sd=sd(Abundance), se=se(Abundance))
 
 avgs_filt_sulf <- filter(avgs_sulf, mean > 0)
 
 
-ggplot(avgs_filt_sulf, aes(x=group, y=mean, fill=Family))+
+pan1 <- ggplot(avgs_sulf, aes(x=bucket.id, y=mean, fill=Family))+
   geom_bar(stat="identity", position = "dodge", color="black") +
   geom_errorbar(aes(ymin=(mean-se), ymax=(mean+se)),
                 width=.4, position=position_dodge(.9)) +
   theme(legend.title=element_blank()) + 
   theme_bw() + 
   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
-        axis.text.x = element_text(face="bold"),
-        legend.position="bottom") +
-  scale_fill_manual(values = col_16) +
-  xlab("Treatment-Age") + ylab("Mean Percent Abundance") +
-  coord_cartesian(ylim = c(0.07,1.6)) +
-  scale_x_discrete(breaks=alpha.breaks,
-                   labels=alpha.ids)
+        axis.text.x = element_text(face="bold")) +
+  #theme(plot.margin=unit(c(1,1,1.5,1.2),"cm")) +
+  scale_fill_manual(values = viridis(8)[c(1,3)]) +
+  xlab("Bucket ID") + ylab("Mean Percent Abundance") +
+  scale_x_discrete(breaks=c("C1","C2", "C3", "SM1", "SM2", "SM3"),
+                   labels=c("C-38D-1","C-38D-2", "C-51D-3", "SM-38D-1", "SM-38D-2","SM-51D-3")) +
+  annotate("text", x = Inf, y = Inf, label = "A", hjust = 1.5, vjust = 1.5, size = 8)
+pan1
 
 
 # some exploratory things
 
-ex1 <- subset_taxa(ps.final, Order==c("Desulfarculales"))
+ex1 <- subset_taxa(ps.final, Family==c("Desulfarculaceae"))
 ex2 <- subset_taxa(ps.final, Order==c("Desulfovibrionales"))
 ex3 <- subset_taxa(ps.final, Order==c("Desulfobacterales"))
-ex4 <- subset_taxa(ps.final, Order==c("Desulfobulbaceae"))
+ex4 <- subset_taxa(ps.final, Family==c("Desulfobulbaceae"))
 ex5 <- subset_taxa(ps.final, Order==c("Campylobacterales"))
 
 ex6 <- subset_taxa(ps.final, Class==c("Deltaproteobacteria"))
 plot_bar(ps.sulf, fill="Family")
 
 
-ex4 <- merge_phyloseq(ex1,ex2,ex3,ex5)
+#ex4 <- merge_phyloseq(ex1,ex2,ex3,ex5)
 
-quartz()
+#quartz()
 plot_bar(ex4, fill="Family")
 
 
 
+
+ps.clostridiales <- subset_taxa(ps.final, Order==c("Clostridiales"))
+ps.thermoanaerobaculales <- subset_taxa(ps.final, Order==c("Thermoanaerobaculales"))
+
+
+#collapse ASVs at Family level
+clost.fams = tax_glom(ps.clostridiales, taxrank="Family", NArm = FALSE)
+df_clost <- psmelt(clost.fams)
+#group and calculate mean, sd and se for different taxonomic levels
+grouped_clost <- group_by(df_clost, bucket.id, Phylum, Class, Order, Family)
+avgs_clost <- dplyr::summarise(grouped_clost, mean=mean(Abundance), sd=sd(Abundance), se=se(Abundance))
+avgs_clost_filt <- filter(avgs_clost, mean > 0)
+unique(avgs_clost_filt$Family)
+
+#collapse ASVs at Family level
+therm.fams = tax_glom(ps.thermoanaerobaculales, taxrank="Family", NArm = FALSE)
+df_therm <- psmelt(therm.fams)
+#group and calculate mean, sd and se for different taxonomic levels
+grouped_therm <- group_by(df_therm, bucket.id, Phylum, Class, Order, Family)
+avgs_therm <- dplyr::summarise(grouped_therm, mean=mean(Abundance), sd=sd(Abundance), se=se(Abundance))
+avgs_therm_filt <- filter(avgs_therm, mean > 0)
+unique(avgs_therm_filt$Family)
+
+avgs_clost
+
+test<-filter(avgs_clost, Family != c("Family_XII"))
+test2<-filter(test, Family != c("Family_XVIII"))
+
+
+pan2 <- ggplot(test2, aes(x=bucket.id, y=mean, fill=Family))+
+  geom_bar(stat="identity", position = "dodge", color="black") +
+  geom_errorbar(aes(ymin=(mean-se), ymax=(mean+se)),
+                width=.4, position=position_dodge(.9)) +
+  theme(legend.title=element_blank()) + 
+  theme_bw() + 
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        axis.text.x = element_text(face="bold")) +
+  #theme(plot.margin=unit(c(1,1,1.5,1.2),"cm")) +
+  scale_fill_manual(values =  viridis(8)[c(4,5,7)] ) +
+  xlab("Bucket ID") + ylab("Mean Percent Abundance") +
+  scale_x_discrete(breaks=c("C1","C2", "C3", "SM1", "SM2", "SM3"),
+                   labels=c("C-38D-1","C-38D-2", "C-51D-3", "SM-38D-1", "SM-38D-2","SM-51D-3")) +
+  annotate("text", x = Inf, y = Inf, label = "B", hjust = 1.5, vjust = 1.5, size = 8)
+pan2
+
+
+pan3 <- ggplot(avgs_therm, aes(x=bucket.id, y=mean, fill=Family))+
+  geom_bar(stat="identity", position = "dodge", color="black") +
+  geom_errorbar(aes(ymin=(mean-se), ymax=(mean+se)),
+                width=.4, position=position_dodge(.9)) +
+  theme(legend.title=element_blank()) + 
+  theme_bw() + 
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        axis.text.x = element_text(face="bold")) +
+  #theme(plot.margin=unit(c(1,1,1.5,1.2),"cm")) +
+  scale_fill_manual(values = viridis(8)[8]) +
+  xlab("Bucket ID") + ylab("Mean Percent Abundance") +
+  scale_x_discrete(breaks=c("C1","C2", "C3", "SM1", "SM2", "SM3"),
+                   labels=c("C-38D-1","C-38D-2", "C-51D-3", "SM-38D-1", "SM-38D-2","SM-51D-3")) +
+  annotate("text", x = Inf, y = Inf, label = "C", hjust = 1.5, vjust = 1.5, size = 8)
+pan3
+
+
+
+pana <- ggplotGrob(pan1)
+panb <- ggplotGrob(pan2)
+panc <- ggplotGrob(pan3)
+
+all.pan <- rbind(pana, panb, panc, size = "last")
+
+grid.newpage()
+grid.draw(all.pan)
+
 #################################################################
 
 
 
 
-# Shell analysis 
+# Shell area analysis 
 #################################################################
 
-setwd("C:/Users/Xanne/Desktop/Oyster microbes/shell-data/")
+setwd("/home/rbanker/Desktop/Oyster microbes/shell-data/")
 
 shell.dat <-read.csv("oyster_seed_shell_data.csv")
-names(shell.dat)
-unique(shell.dat$treatment)
 
 shell.dat.red <- filter(shell.dat, shell.dat$treatment != "low-ph")
-
 
 
 # reshaping data and initial statistical tests
@@ -824,76 +939,56 @@ names(larval) <- c("image.id", "treatment", "bucket.no", "age", "stage", "larval
 # renaming whole column names
 names(whole) <- c("image.id", "treatment", "bucket.no", "age", "stage", "whole.area.um2", "whole.perimeter.um")
 
-# taking columns 1-4, 6, and 7 from larval and 6 and 7 from whole
+# # taking columns 1-4, 6, and 7 from larval and 6 and 7 from whole
 final <- as.data.frame(c(larval[,c(1:4,6:7)], whole[,6:7]))
 
-names(final)
-# note that we no longer need the "stage" key column, instead larval and whole measurements have their own columns
 
-# creating a column for just the juvenile part of the shell by subtracting the larval shell meaurements from the whole
-final$juvenile.area.um2 <- final$whole.area.um2 - final$larval.area.um2
-# new column that are treatment-age groups
-final$group <- paste(final$treatment,final$age)
-
-
-# going to use analysis of variance (ANOVA) to evaluate whether or not shell areas are statistically different between treatment groups
-
-# calls aov() from base R stats comparing larval.area.um2 between treatments
-larv.group.aov <- aov(larval.area.um2 ~ group, data = final)
-summary(larv.group.aov)
-#            Df    Sum Sq   Mean Sq F value  Pr(>F)   
-# group        3 2.141e+09 713787732   5.586 0.00201 **
-# Residuals   56 7.155e+09 127772402  
-
-# Now do to the pairwise comparisons, also known as a posthoc test
-larv.thsd <- TukeyHSD(larv.group.aov)
-larv.thsd
-#                             diff         lwr       upr     p adj
-# control 52-control 38     11102.6716    920.3346 21285.009 0.0274539
-# molybdate 38-control 38    9056.5176    742.6743 17370.361 0.0276535
-# molybdate 52-control 38   10314.7421    132.4051 20497.079 0.0459900
-# molybdate 38-control 52   -2046.1540 -12228.4910  8136.183 0.9508939
-# molybdate 52-control 52    -787.9295 -12545.4795 10969.621 0.9979915
-# molybdate 52-molybdate 38  1258.2245  -8924.1125 11440.561 0.9877760
-
-
-
-# Now we repeat for the juvenile shell measurements
-juvenile.group.aov <- aov(juvenile.area.um2 ~ group, data = final)
-summary(juvenile.group.aov)
-#               Df    Sum Sq   Mean Sq F value   Pr(>F)    
-# group        3 3.359e+12 1.120e+12   43.78 1.06e-14 ***
-# Residuals   56 1.432e+12 2.558e+10    
-
-juvenile.thsd <- TukeyHSD(juvenile.group.aov)
-juvenile.thsd
-#                            diff        lwr        upr     p adj
-# control 52-control 38      461362.1  297345.04 625379.244 0.0000000
-# molybdate 38-control 38    289637.7  155718.27 423557.080 0.0000025
-# molybdate 52-control 38    662279.4  498262.25 826296.463 0.0000000
-# molybdate 38-control 52   -171724.5 -335741.57  -7707.361 0.0368055
-# molybdate 52-control 52    200917.2   11526.58 390307.858 0.0335486
-# molybdate 52-molybdate 38  372641.7  208624.58 536658.789 0.0000008
-
-
-
-# # Okay, now we know that shell area is significantly different between the contorl and low-ph treatments, 
-# # and between the molybdate and control groups
-# whole.group.aov <- aov(whole.area.um2 ~ group, data = final)
-# summary(whole.group.aov)
-# #           Df    Sum Sq   Mean Sq F value   Pr(>F)    
-# # group        3 3.480e+12 1.160e+12   44.51 7.64e-15 ***
-# # Residuals   56 1.459e+12 2.606e+10         
+# # note that we no longer need the "stage" key column, instead larval and whole measurements have their own columns
 # 
-# whole.thsd <- TukeyHSD(whole.group.aov)
-# whole.thsd
-# #                            diff         lwr        upr     p adj
-# # control 52-control 38      472464.8  306906.374 638023.249 0.0000000
-# # molybdate 38-control 38    298694.2  163516.294 433872.091 0.0000016
-# # molybdate 52-control 38    672594.1  507035.664 838152.539 0.0000000
-# # molybdate 38-control 52   -173770.6 -339329.057  -8212.182 0.0361717
-# # molybdate 52-control 52    200129.3    8958.873 391299.707 0.0368368
-# # molybdate 52-molybdate 38  373899.9  208341.471 539458.347 0.0000010
+# # creating a column for just the juvenile part of the shell by subtracting the larval shell meaurements from the whole
+final$juvenile.area.um2 <- final$whole.area.um2 - final$larval.area.um2
+# # new column that are treatment-age groups
+final$group <- paste(final$treatment,final$age)
+# 
+# 
+# # going to use analysis of variance (ANOVA) to evaluate whether or not shell areas are statistically different between treatment groups
+# 
+# # calls aov() from base R stats comparing larval.area.um2 between treatments
+# larv.group.aov <- aov(larval.area.um2 ~ group, data = final)
+# summary(larv.group.aov)
+# #            Df    Sum Sq   Mean Sq F value  Pr(>F)   
+# # group        3 2.141e+09 713787732   5.586 0.00201 **
+# # Residuals   56 7.155e+09 127772402  
+# 
+# # Now do to the pairwise comparisons, also known as a posthoc test
+# larv.thsd <- TukeyHSD(larv.group.aov)
+# larv.thsd
+# #                             diff         lwr       upr     p adj
+# # control 52-control 38     11102.6716    920.3346 21285.009 0.0274539
+# # molybdate 38-control 38    9056.5176    742.6743 17370.361 0.0276535
+# # molybdate 52-control 38   10314.7421    132.4051 20497.079 0.0459900
+# # molybdate 38-control 52   -2046.1540 -12228.4910  8136.183 0.9508939
+# # molybdate 52-control 52    -787.9295 -12545.4795 10969.621 0.9979915
+# # molybdate 52-molybdate 38  1258.2245  -8924.1125 11440.561 0.9877760
+# 
+# 
+# # Now we repeat for the juvenile shell measurements
+# juvenile.group.aov <- aov(juvenile.area.um2 ~ group, data = final)
+# summary(juvenile.group.aov)
+# #               Df    Sum Sq   Mean Sq F value   Pr(>F)    
+# # group        3 3.359e+12 1.120e+12   43.78 1.06e-14 ***
+# # Residuals   56 1.432e+12 2.558e+10    
+# 
+# juvenile.thsd <- TukeyHSD(juvenile.group.aov)
+# juvenile.thsd
+# #                            diff        lwr        upr     p adj
+# # control 52-control 38      461362.1  297345.04 625379.244 0.0000000
+# # molybdate 38-control 38    289637.7  155718.27 423557.080 0.0000025
+# # molybdate 52-control 38    662279.4  498262.25 826296.463 0.0000000
+# # molybdate 38-control 52   -171724.5 -335741.57  -7707.361 0.0368055
+# # molybdate 52-control 52    200917.2   11526.58 390307.858 0.0335486
+# # molybdate 52-molybdate 38  372641.7  208624.58 536658.789 0.0000008
+
 
 
 
@@ -901,51 +996,330 @@ juvenile.thsd
 # Shell Figure
 
 shell.dat.fig <-read.csv("shell_dat_fig.csv")
-shell.dat.fig <- filter(shell.dat.fig, stage != "whole")
-
-shell.dat.fig$group <- paste(shell.dat.fig$treatment,shell.dat.fig$age)
-shell.dat.fig$area.mm2 <- shell.dat.fig$area.um2/1000
-
-# summary function below called here
-area.mm.summary <- summarySE(shell.dat.fig, measurevar="area.mm2", groupvars=c("treatment","stage","age"))
-area.mm.summary
 
 
-# # New facet label names for treatment variable
-# ad_labeller_shell <- as_labeller( c("larval" = "Larval",
-#                               "juv" = "Juvenile",
-#                               "whole" = "Whole",
-#                               "38" = "38",
-#                               "52" = "52") )
+juv.shell <- filter(shell.dat.fig, stage == "juvenile")
+juv.shell$bucket.id <- paste(juv.shell$treatment, juv.shell$bucket.no)
+juv.shell$area.mm2 <- juv.shell$area.um2/1000
 
-ggplot(shell.dat.fig, aes(x=treatment, y=area.mm2))+
-  geom_boxplot() + geom_jitter() +
-  theme(legend.title=element_blank()) +
-  theme_bw() +
-  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
-  #coord_cartesian(ylim = c(30,650)) +
+
+ggplot(juv.shell, aes(x=bucket.id, y=area.mm2, fill=treatment))+
+  geom_boxplot(outlier.color="white") + geom_jitter() +
+  theme(legend.title=element_blank()) + 
+  theme_bw() + 
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        legend.position="none") +
   xlab("Treatment") + ylab(bquote('Area (mm' ^2*')')) +
-  facet_grid(stage~age, scales="free_y") +
-  stat_summary(fun=mean, geom="point", shape=20, size=7, color="red", fill="red")+
-  scale_x_discrete(breaks=c("control","molybdate"),
-                   labels=c("Control","Molybdate"))
-
-
-# getting weird results from this so going to try something else
-
-
-shell.dat.larv <- filter(shell.dat.fig, stage == "larval")
-shell.dat.juv <- filter(shell.dat.fig, stage == "juvenile")
-
-ggplot(shell.dat.larv, aes(x=treatment, y=area.mm2)) +
-  geom_boxplot(outlier.shape = NA) + geom_jitter()
+  facet_grid(.~age, scales="free", labeller = labeller(age = supp.labs)) +
+  scale_fill_manual(values = magma(5)[3:5] ) +
+  scale_x_discrete(breaks=c("control 1","control 2", "control 3", "molybdate 1", "molybdate 2", "molybdate 3"),
+                   labels=c("C-38D-1","C-38D-2", "C-51D-3", "SM-38D-1", "SM-38D-2","SM-51D-3")) 
 
 
 
+# juvenile size
+
+#  percent area increase at 38 days
+# ((mean((juv.shell %>% filter(treatment == "molybdate") %>% filter(age == 38))$area.mm2) / mean((juv.shell %>% filter(treatment == "control") %>% filter(age == 38))$area.mm2)) * 100)-100
+
+# mean.area.sm.38 <- mean((juv.shell %>% filter(treatment == "molybdate") %>% filter(age == 38))$area.mm2)
+# mean.area.sm.38 
+# mean.area.c.38 <- mean((juv.shell %>% filter(treatment == "control") %>% filter(age == 38))$area.mm2)
+# mean.area.c.38
+# # percent increase of sm compared to control at day 38
+# ((mean.area.sm.38 - mean.area.c.38)/ mean.area.c.38) * 100
+
+
+#  percent area increase at 51 days
+#((mean((juv.shell %>% filter(treatment == "molybdate") %>% filter(age == 52))$area.mm2) / mean((juv.shell %>% filter(treatment == "control") %>% filter(age == 52))$area.mm2)) * 100)-100
+
+# mean.area.sm.51 <- mean((juv.shell %>% filter(treatment == "molybdate") %>% filter(age == 52))$area.mm2)
+# mean.area.sm.51 
+# mean.area.c.51 <- mean((juv.shell %>% filter(treatment == "control") %>% filter(age == 52))$area.mm2)
+# mean.area.c.51
+# # percent increase of sm compared to control at day 38
+# ((mean.area.sm.51 - mean.area.c.51)/ mean.area.c.51) * 100
+
+# whole size
+
+whole$whole.area.mm2 <- whole$whole.area.um2/1000
+whole$bucket.id <- paste(whole$treatment, whole$bucket.no)
+whole.38 <- filter(whole, age == 38)
+whole.51 <- filter(whole, age == 52)
+
+area.lmer <- lmer(whole.area.mm2 ~ (1|bucket.id), data = whole.38, REML=T)
+
+area.lmer2 <- lmer(whole.area.mm2 ~ treatment + (1|bucket.id), data = whole.38, REML=T)
+
+# area.lmer <- lmer(area.mm2 ~ (1|bucket.id), data = juv.shell, REML=T)
+# 
+# area.lmer2 <- lmer(area.mm2 ~ treatment + (1|bucket.id), data = juv.shell, REML=T)
+
+anova(area.lmer, area.lmer2)
+# aov significant, use second model
+
+summary(area.lmer)
+summary(area.lmer2)
+
+
+(17196/(17196+13927))
+
+# aov for 51 days
+whole.group.aov <- aov(whole.area.mm2 ~ treatment, data = whole.51)
+summary(whole.group.aov)
+
+# percent increases of whole shell area at two time points
+
+mean.area.sm.38 <- mean((whole %>% filter(treatment == "molybdate") %>% filter(age == 38))$whole.area.mm2)
+mean.area.sm.38 
+mean.area.c.38 <- mean((whole %>% filter(treatment == "control") %>% filter(age == 38))$whole.area.mm2)
+mean.area.c.38
+# percent increase of sm compared to control at day 38
+((mean.area.sm.38 - mean.area.c.38)/ mean.area.c.38) * 100
+
+mean.area.sm.51 <- mean((whole %>% filter(treatment == "molybdate") %>% filter(age == 52))$whole.area.mm2)
+mean.area.sm.51 
+mean.area.c.51 <- mean((whole %>% filter(treatment == "control") %>% filter(age == 52))$whole.area.mm2)
+mean.area.c.51
+# percent increase of sm compared to control at day 51
+((mean.area.sm.51 - mean.area.c.51)/ mean.area.c.51) * 100
+
+
+supp.labs2 <- c("38-Days", "51-Days")
+names(supp.labs2) <- c("38", "52")
+
+ggplot(whole, aes(x=bucket.id, y=whole.area.mm2, fill=treatment))+
+  geom_boxplot(outlier.color="white") + geom_jitter() +
+  theme(legend.title=element_blank()) + 
+  theme_bw() + 
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        legend.position="none") +
+  xlab("Bucket ID") + ylab(bquote('Whole shell area (mm' ^2*')')) +
+  facet_grid(.~age, scales="free", labeller = labeller(age = supp.labs2)) +
+  scale_fill_manual(values = magma(5)[3:5] ) +
+  scale_x_discrete(breaks=c("control 1","control 2", "control 3", "molybdate 1", "molybdate 2", "molybdate 3"),
+                   labels=c("C-38D-1","C-38D-2", "C-51D-3", "SM-38D-1", "SM-38D-2","SM-51D-3")) 
+
+
+
+
+
+
+
+
+
+
+
+
+# August 20 2021
+# Growth Rate Analysis
+
+names(final)
+
+final$juvenile.area.mm2 <- final$juvenile.area.um2/1000
+final$larval.area.mm2 <- final$larval.area.um2/1000
+final$bucket.id <- paste(final$treatment, final$bucket.no)
+
+final.38 <- filter(final, age == 38)
+final.51 <- filter(final, age == 52)
+
+# days 1 to 38
+#day <- c(1:51)
+
+bucket.id <- unique(final.51$bucket.id)
+Data <- final.51
+
+mean.rate <- NULL
+stdev.rate <- NULL
+buckets <- NULL
+stages <- NULL
+#all.days <- NULL
+
+for (i in bucket.id) {
+  sub <- filter(Data, bucket.id == i)
+  mean.rate <- c(c(mean(sub$larval.area.mm2/31), mean(sub$juvenile.area.mm2)/20), mean.rate)
+  stdev.rate <- c(c(StdDev(sub$larval.area.mm2/31), StdDev(sub$juvenile.area.mm2)/20), stdev.rate)
+  buckets <- c(rep(i,2),buckets)
+  stages <- c(c("larval", "juvenile"), stages)
+  print(mean.rate)
+  print(buckets)
+  print(stages)
+}
+
+# for (i in bucket.id) {
+#   sub <- filter(Data, bucket.id == i)
+#   mean.rate <- c(c(rep(mean(sub$larval.area.mm2)/31,31), rep(mean(sub$juvenile.area.mm2)/20,20)), mean.rate)
+#   buckets <- c(rep(i,51),buckets)
+#   all.days <- c(day,all.days)
+#   print(mean.rate)
+#   print(buckets)
+#   print(all.days)
+# }
+
+# final data frame with mean larval area / 31 days (settlement) and juvenile size 
+# (days 31-51) / 20 days for mean post settlement growth rate in mm^2/day
+#growth.rates.red.38 <- data.frame(buckets, mean.rate, stdev.rate, stages)
+#growth.rates.red.51 <- data.frame(buckets, mean.rate, stdev.rate, stages)
+
+
+
+growth.rates.red <- rbind(growth.rates.red.38,growth.rates.red.51)
+growth.rates.red$se.rate <- growth.rates.red$stdev.rate/(10^(1/2))
+
+
+# setting class of the column stage as factor
+growth.rates.red$stages <- as.factor(growth.rates.red$stages)
+# setting the first level of the factor to the larval (the youngest/first stage), again this helps with the figures later on
+growth.rates.red$stages <- relevel(growth.rates.red$stages, "larval")
+
+write.csv(growth.rates.red, "bucket-growth-rates.csv")
+
+growth.rates.red$stage.cat <- c("larval", "38", "larval", "38", "larval",
+                                "38", "larval", "38", "larval",
+                                "51", "larval", "51")
+
+facet.labs <- c("Larval (prodissoconch II)", "Juvenile (dissoconch)")
+names(facet.labs) <- c("larval", "juvenile")
+
+
+ggplot(growth.rates.red, aes(x=stage.cat, y=mean.rate, fill=buckets)) +
+  geom_bar(stat="identity", position="dodge") +
+  theme(legend.title=element_blank()) + 
+  theme_bw() + 
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        axis.text.x = element_text(face="bold"),
+        axis.ticks.x = element_blank()) +
+  xlab("") + ylab(bquote('Average growth rate (mm' ^2*'/day)'))  +
+  scale_fill_manual(name = "Bucket ID",
+                      labels = bucket.labs,
+                      values = bucket.cols ) +   
+  scale_shape_manual(name = "Bucket ID",
+                     labels = bucket.labs,
+                     values = bucket.shapes) +
+  scale_x_discrete(breaks=c("larval", "38", "51"),
+                   labels=c("","Collected at \n38 Days", "Collected at \n51 Days")) +
+  # geom_errorbar(aes(ymin=(mean.rate-se.rate), ymax=(mean.rate+se.rate)),
+  #               width=.4, position=position_dodge(.9)) +
+  facet_wrap(stages~., scales="free", labeller = labeller(stages = facet.labs))
+
+
+
+
+
+# old fig  
+# 
+# 
+# 
+# ggplot(growth.rates, aes(x=all.days, y=log.mean.rate, color=buckets, shape=buckets)) +
+#   theme(legend.title=element_blank()) + 
+#   theme_bw() + 
+#   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+#         axis.text.x = element_text(face="bold")) +
+#   xlab("Day post fertilization") + ylab(bquote('Log mean Growth rate (mm' ^2*'/day)'))  +
+#   scale_colour_manual(name = "Bucket ID",
+#                       labels = bucket.labs,
+#                       values = bucket.cols ) +   
+#   scale_shape_manual(name = "Bucket ID",
+#                      labels = bucket.labs,
+#                      values = bucket.shapes) +
+#   geom_line()  
+
+
+
+
+# how much bigger is juvenile shell than larval shell for 38 day old oysters from each treatment?
+
+(mean(filter(final.38, group == "control 38")$juvenile.area.mm2) / mean(filter(final.38, group == "control 38")$larval.area.mm2))
+# [1] 1.627366
+
+(mean(filter(final.38, group == "molybdate 38")$juvenile.area.mm2) / mean(filter(final.38, group == "molybdate 38")$larval.area.mm2))
+# [1] 5.541464
+
+mean(filter(final.38, group == "molybdate 38")$larval.area.mm2)/mean(filter(final.38, group == "control 38")$larval.area.mm2)
+# [1] 1.148039
 
 
   
 ################################################################
+
+
+
+
+# July 20 2021 - shell mass
+################################################################
+
+setwd("/home/rbanker/Desktop/Oyster microbes/shell-data/")
+
+mass.dat <-read.csv("shell_mass.csv")
+
+mass.dat.red <- mass.dat %>% filter(treatment != "low-ph") 
+
+names(mass.dat.red)
+
+# fig
+ggplot(mass.dat.red, aes(x=bucket, y=mass.mg, fill=treatment))+
+  geom_boxplot(outlier.color="white") + geom_jitter() +
+  theme(legend.title=element_blank()) + 
+  theme_bw() + 
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        legend.position="none") +
+  xlab("Treatment") + ylab("Shell mass (mg)") +
+  facet_grid(.~age, scales="free", labeller = labeller(age = supp.labs)) +
+  scale_fill_manual(values = magma(5)[3:5] ) +
+  scale_x_discrete(breaks=c("C1","C2", "C3", "SM1", "SM2", "SM3"),
+                   labels=c("C-38D-1","C-38D-2", "C-51D-3", "SM-38D-1", "SM-38D-2","SM-51D-3")) 
+
+#  percent mass increase at 38 days
+((mean((mass.dat.red %>% filter(treatment == "molybdate") %>% filter(age == 38))$mass.mg) / mean((mass.dat.red %>% filter(treatment == "control") %>% filter(age == 38))$mass.mg)) * 100)-100
+
+#  percent mass increase at 51 days
+((mean((mass.dat.red %>% filter(treatment == "molybdate") %>% filter(age == 51))$mass.mg) / mean((mass.dat.red %>% filter(treatment == "control") %>% filter(age == 51))$mass.mg)) * 100)-100
+
+
+
+
+# mixed linear model
+mass.dat.lm <- mass.dat %>% filter(treatment != "low-ph") %>% filter(age == 38)
+
+
+mass.lmer <- lmer(mass.mg ~ (1|bucket), data = mass.dat.lm, REML=T)
+
+mass.lmer2 <- lmer(mass.mg ~ treatment + (1|bucket), data = mass.dat.lm, REML=T)
+
+anova(mass.lmer, mass.lmer2)
+
+
+print(mass.lmer)
+
+summary(mass.lmer)
+summary(mass.lmer2)
+
+coef(mass.blmer)
+plot(mass.blmer)
+qqnorm(resid(mass.blmer))
+qqline(resid(mass.blmer))
+
+
+
+# t test at 51 days
+mass.51 <- filter(mass.dat.red, age == 51)
+
+mass.51.aov <- aov(mass.mg ~ treatment, data = mass.51)
+summary(mass.51.aov)
+
+################################################################
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
