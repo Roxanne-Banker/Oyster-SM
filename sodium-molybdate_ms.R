@@ -989,6 +989,14 @@ summary(area.lmer2)
 summary(area.lmer3)
 
 
+t.test(whole.area.mm2 ~ treatment, data = whole.38)
+
+t.test(whole.area.mm2 ~ treatment, data = whole.51)
+
+
+
+
+
 (17196/(17196+13927))
 
 # aov for 51 days
