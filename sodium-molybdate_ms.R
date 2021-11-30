@@ -1,9 +1,9 @@
 rm(list = ls())
 
-save.image("~/Documents/Bioinformatics/oyster-oa/microbiome/molybdate_ms_dat.RData")
+#save.image("~/Documents/Bioinformatics/oyster-oa/microbiome/molybdate_ms_dat.RData")
 load("~/Documents/Bioinformatics/oyster-oa/microbiome/molybdate_ms_dat.RData")
 
-setwd("/home/rbanker/Documents/Bioinformatics/oyster-oa/microbiome/")
+#setwd("/home/rbanker/Documents/Bioinformatics/oyster-oa/microbiome/")
 
 
 
@@ -49,8 +49,8 @@ library(lmerTest)
 set.seed(5311)
 
 
-# Summary Function defined for later use
-#################################################################
+# Summary Function defined for later use ----
+
 summarySE <- function(data=NULL, measurevar, groupvars=NULL, na.rm=FALSE,
                       conf.interval=.95, .drop=TRUE) {
   library(plyr)
@@ -87,12 +87,15 @@ summarySE <- function(data=NULL, measurevar, groupvars=NULL, na.rm=FALSE,
   
   return(datac)
 }
-#################################################################
+
 
 
 
 # Alpha diversity plots
-#################################################################
+
+
+
+# Read in data and phyloseq object ----
 # reading in the phyloseq object that includes the whole dataset as a phyloseq object
 data <- readRDS("data.rds")
 sample.names <- readRDS("sample_names.rds")
@@ -134,7 +137,7 @@ alpha.ids <- c("C38-1",  "C38-2",  "C51",
 
 
 
-# Alpha Diversity Statistics
+# Alpha Diversity Statistics ----
 
 
 # KW tests outdated, now using linear mixed model
@@ -162,46 +165,6 @@ kruskal.test(Shannon ~ treatment, data=alpha.measure.final)
 kruskal.test(Observed ~ treatment, data=alpha.measure.final)
 # Kruskal-Wallis chi-squared = 0.22689, df = 1, p-value = 0.6338
 
-
-# June 11 2021
-# trying a mixed linear model
-# https://ourcodingclub.github.io/tutorials/mixed-models/
-
-
-# Playing around with using a linear mixed model
-# lmm.alpha <- filter(alpha.measure.final, bucket.replicate != 3)
-# 
-# # random intercept random slope Observed
-# mixed.model.alpha1 <- blmer(Observed ~ (1|bucket.id), data=lmm.alpha, cov.prior=invwishart)
-# mixed.model.alpha2 <- blmer(Observed ~ treatment + (1+treatment|bucket.id), data=lmm.alpha, cov.prior=invwishart)
-# 
-# # mixed.model.alpha.0 <- lmer(Observed ~ (1|bucket.id), data=lmm.alpha, REML=T)
-# # mixed.model.alpha.1 <- lmer(Observed ~ treatment + (1|bucket.id), data=lmm.alpha, REML=T)
-# 
-# summary(mixed.model.alpha)
-# bpvals <- parameters::p_value(mixed.model.alpha)
-# bpvals
-# 
-# plot(mixed.model.alpha)
-# qqnorm(resid(mixed.model.alpha))
-# qqline(resid(mixed.model.alpha))
-# 
-# # random intercept random slope Shannon
-# mixed.model.shannon <- blmer(Shannon ~ treatment + (1+treatment|bucket.id), data=lmm.alpha, cov.prior=invwishart)
-# 
-# summary(mixed.model.shannon)
-# bpvals <- parameters::p_value(mixed.model.shannon)
-# bpvals
-# 
-# plot(mixed.model.alpha)
-# qqnorm(resid(mixed.model.alpha))
-# qqline(resid(mixed.model.alpha))
-
-
-
-# affects slope and intercept
-# mixed.slope.obs <- lmer(Observed ~ treatment + (1 + treatment|group/bucket.id), data = alpha.measure.final) 
-# summary(mixed.slope.obs)
 
 # Creating vectors of names that will be used as labels in the ggplot commands below
 supp.labs <- c("38-Days", "51-Days")
@@ -243,12 +206,12 @@ grid.draw(zz)
 
 
 
-#################################################################
 
 
 
-# Normalizing for sample depth via variance stabalizing transformation
-#################################################################
+
+# Normalizing for sample depth via variance stabalizing transformation ----
+
 # Will be using Deseq2 to variance stabilizing transformation, instead of the classic rarefaction or
 # turning counts into proportions. This is recommended by the McMurdie and Holmes 2014 Plos Computational Biology paper, Waste not Want not.
 # using this tutorial: https://astrobiomike.github.io/amplicon/dada2_workflow_ex#analysis-in-r
@@ -279,11 +242,11 @@ vst_transform[vst_transform < 0.0] <- 0.0
 euc_dist <- assay(data_deseq_vst)
 euc_dist <- dist(t(vst_transform))
 
-#################################################################
 
 
-# New Phyloseq object with adjusted ASV counts via DESEQ2
-#################################################################
+
+# New Phyloseq object with adjusted ASV counts via DESEQ2 ----
+
 # reading in the vst transformed sequence counts so I do not need to do that step again (takes time)
 vst_transform <- readRDS("vst_transform_table.rds")
 
@@ -296,11 +259,10 @@ ps.vst <- phyloseq(vst_transform_phy, mapping, taxa)
 # Calculate RA per sample
 ps.vst.RA <- transform_sample_counts(ps.vst, function(x) 100 * x/sum(x))
 
-#################################################################
 
 
-# Ordinatation
-#################################################################
+
+# Ordinatation ----
 
 # read in the data here so I don't have to go through the long vst steps
 ps.all <- readRDS("ps_all.rds")
@@ -333,8 +295,6 @@ bucket.shapes <-c(17, 17, 17,
 bucket.cols <- c("#fa9fb5", "#c51b8a", "#7a0177",
                  "#fed976", "#fd8d3c", "#f03b20")
 
-
-
 plot_ordination(ps.final, ord.nmds.bray, shape="bucket.id", color="bucket.id") +
   geom_point(size = 4) +
   theme(legend.title=element_blank()) + 
@@ -353,9 +313,8 @@ plot_ordination(ps.final, ord.nmds.bray, shape="bucket.id", color="bucket.id") +
   
 
 
+# Ordination Statistics ----
 
-
-# Ordination Statistics
 # pulling out sample data for later
 sample.data <- data.frame(sample_data(ps.final))
 
@@ -427,7 +386,6 @@ adonis(Dist.c38.c51 ~ group, data = data.c38.c51)
 
 
 # C38:SM38
-
 ps.c38.sm38 <- merge_phyloseq(ps.c38,ps.sm38)
 # make a data frame from the sample_data
 data.c38.sm38 <- data.frame(sample_data(ps.c38.sm38))
@@ -449,7 +407,6 @@ adonis(Dist.c38.sm38 ~ group, data = data.c38.sm38)
 
 
 # C51:SM51
-
 ps.c51.sm51 <- merge_phyloseq(ps.c51,ps.sm51)
 # make a data frame from the sample_data
 data.c51.sm51 <- data.frame(sample_data(ps.c51.sm51))
@@ -471,7 +428,6 @@ adonis(Dist.c51.sm51 ~ group, data = data.c51.sm51)
 
 
 # SM38:SM51
-
 ps.sm38.sm51 <- merge_phyloseq(ps.sm38,ps.sm51)
 # make a data frame from the sample_data
 data.sm38.sm51 <- data.frame(sample_data(ps.sm38.sm51))
@@ -491,15 +447,14 @@ adonis(Dist.sm38.sm51 ~ group, data = data.sm38.sm51)
 # Residuals  5   0.16000 0.032001         0.36153         
 # Total      6   0.44258                  1.00000    
 
-#################################################################
 
 
 
-# Taxonomy tests
+# Taxonomy tests ----
 
 # All Treatments
 # Comparison on means, KW, Dunn 
-#################################################################
+
 
 #define standard error function
 se <- function(x) sqrt(var(x)/length(x))
@@ -523,16 +478,6 @@ write.csv(avgs_filt, "SM_treatment_fam_avg_sd_se.csv")
 avgs_filt$ST <- as.factor(avgs_filt$treatment)
 avgs_filt_st <- melt(data.frame(avgs_filt), id.vars=c("Order", "treatment"),
                      measure.vars=c("mean"))
-
-# What is this stuff? Junk code?
-# kruskal_test(mean ~ ST, distribution=approximate(nresample=9999), data=avgs_filt)
-# 
-# for (i in 1:length(levels(df_o$Family))) {
-#   new_df <- subset(df_o, df_o$Family == levels(df_o$Family)[i])
-#   new_df$ST <- as.factor(new_df$treatment)
-#   print(new_df$Genus[1])
-#   print(kruskal_test(Abundance ~ ST, distribution=approximate(nresample=9999), data=new_df))
-#   print( dunnTest(Abundance ~ ST, data=new_df, method ="bonferroni"))}
 
 #start
 chisq = NULL
@@ -588,14 +533,12 @@ write.table(df_taxa, 'SM_Treatment_VST_Mean_FAM_KW.txt', sep="\t")
 # write.csv(df_taxa, 'SM_Treatment_VST_Mean_FAM_KW_Dunn_OI.csv')
 
 
-#################################################################
 
 
 
-# Treatments/Age
+
+# Treatments/Age ----
 # Comparison on means, KW, Dunn 
-#################################################################
-
 
 #collapse ASVs at Order level
 AvgRA_o = tax_glom(ps.final, taxrank="Order", NArm = FALSE)
@@ -662,7 +605,7 @@ for (cat in listofcats_sig){
 df_taxa = data.frame(cats.dunn, comparison.dunn, Zsc.dunn, pvals.dunn, pvals.dunn.bonf)
 
 # df_taxa_red <- filter(df_taxa, comparison.dunn != c( "C38 - SM51","C51 - SM38"))
-# 
+#
 # df_taxa_red$pvals.dunn.bonf <-  p.adjust(df_taxa_red$pvals.dunn, method="bonferroni")
 
 tax_oi <- filter(df_taxa, pvals.dunn.bonf < 0.05)
@@ -671,14 +614,10 @@ write.csv(df_taxa, 'SM_treat-time_VST_Mean_FAM_KW_Dunn_OI.csv')
 
 
 
-#################################################################
 
 
 
-
-
-# Taxonomic bar chart figure
-#################################################################
+# Taxonomic bar chart figure ----
 
 #group and calculate mean, sd and se for different taxonomic levels
 groups <- group_by(df_o, group, Phylum, Class, Order)
@@ -689,6 +628,7 @@ groups_avgs <- dplyr::summarise(groups, mean=mean(Abundance), sd=sd(Abundance), 
 
 buckets_avgs <- dplyr::summarise(buckets, mean=mean(Abundance), sd=sd(Abundance), se=se(Abundance))
 
+# This figure no longer in the MS, top 10 or so ASVs
 # old code, go to next section
 # avgs_0p <- filter(groups_avgs, mean > 0)
 # 
@@ -745,13 +685,10 @@ buckets_avgs <- dplyr::summarise(buckets, mean=mean(Abundance), sd=sd(Abundance)
 #                    labels=alpha.ids) 
 
 
-#################################################################
 
 
 
-
-# Taxonomic bar chart figure take 2: Aug 9 2021
-#################################################################
+# Taxonomic bar chart figure take 2: Aug 9 2021 ----
 
 orders <- c("Thiohalorhabdales",
             "Clostridiales",
@@ -781,13 +718,9 @@ ggplot(sig_orders, aes(x=bucket.id, y=mean, fill=Order))+
                  labels=c("C-38D-1", "C-38D-2", "C-51D-3", "SM-38D-1", "SM-38D-2", "SM-51D-3")) 
 
 
-#################################################################
 
 
-
-
-# Sulfate-reducing bacteria 
-#################################################################
+# Sulfate-reducing bacteria figure ----
 
 ps.sulf <- subset_taxa(ps.final, Class==c("Deltaproteobacteria"))
 
@@ -822,7 +755,6 @@ pan1
 
 
 # some exploratory things
-
 ex1 <- subset_taxa(ps.final, Family==c("Desulfarculaceae"))
 ex2 <- subset_taxa(ps.final, Order==c("Desulfovibrionales"))
 ex3 <- subset_taxa(ps.final, Order==c("Desulfobacterales"))
@@ -832,12 +764,8 @@ ex5 <- subset_taxa(ps.final, Order==c("Campylobacterales"))
 ex6 <- subset_taxa(ps.final, Class==c("Deltaproteobacteria"))
 plot_bar(ps.sulf, fill="Family")
 
-
 #ex4 <- merge_phyloseq(ex1,ex2,ex3,ex5)
-
-#quartz()
 plot_bar(ex4, fill="Family")
-
 
 
 
@@ -903,7 +831,6 @@ pan3 <- ggplot(avgs_therm, aes(x=bucket.id, y=mean, fill=Family))+
 pan3
 
 
-
 pana <- ggplotGrob(pan1)
 panb <- ggplotGrob(pan2)
 panc <- ggplotGrob(pan3)
@@ -913,20 +840,16 @@ all.pan <- rbind(pana, panb, panc, size = "last")
 grid.newpage()
 grid.draw(all.pan)
 
-#################################################################
 
 
 
-
-# Shell area analysis 
-#################################################################
+# Shell area analysis ----
 
 setwd("/home/rbanker/Desktop/Oyster microbes/shell-data/")
 
 shell.dat <-read.csv("oyster_seed_shell_data.csv")
 
 shell.dat.red <- filter(shell.dat, shell.dat$treatment != "low-ph")
-
 
 # reshaping data and initial statistical tests
 # using filter to take out all rows that have "whole" as the entry in the stage column
@@ -993,10 +916,9 @@ final$group <- paste(final$treatment,final$age)
 
 
 
-# Shell Figure
+# Shell Figure ----
 
 shell.dat.fig <-read.csv("shell_dat_fig.csv")
-
 
 juv.shell <- filter(shell.dat.fig, stage == "juvenile")
 juv.shell$bucket.id <- paste(juv.shell$treatment, juv.shell$bucket.no)
@@ -1051,6 +973,10 @@ area.lmer <- lmer(whole.area.mm2 ~ (1|bucket.id), data = whole.38, REML=T)
 
 area.lmer2 <- lmer(whole.area.mm2 ~ treatment + (1|bucket.id), data = whole.38, REML=T)
 
+area.lmer3 <- lmer(whole.area.mm2 ~ treatment + (1|treatment:bucket.id), data = whole.38, REML=T)
+#https://stats.stackexchange.com/questions/70556/have-i-correctly-specified-my-model-in-lmer
+
+
 # area.lmer <- lmer(area.mm2 ~ (1|bucket.id), data = juv.shell, REML=T)
 # 
 # area.lmer2 <- lmer(area.mm2 ~ treatment + (1|bucket.id), data = juv.shell, REML=T)
@@ -1060,13 +986,18 @@ anova(area.lmer, area.lmer2)
 
 summary(area.lmer)
 summary(area.lmer2)
+summary(area.lmer3)
 
 
 (17196/(17196+13927))
 
 # aov for 51 days
-whole.group.aov <- aov(whole.area.mm2 ~ treatment, data = whole.51)
-summary(whole.group.aov)
+# whole.group.aov <- aov(whole.area.mm2 ~ treatment, data = whole.51)
+# summary(whole.group.aov)
+
+whole.group.ttest <- t.test(whole.area.mm2 ~ treatment, data = whole.51)
+summary(whole.group.ttest)
+whole.group.ttest
 
 # percent increases of whole shell area at two time points
 
@@ -1112,7 +1043,7 @@ ggplot(whole, aes(x=bucket.id, y=whole.area.mm2, fill=treatment))+
 
 
 # August 20 2021
-# Growth Rate Analysis
+# Growth Rate Analysis ----
 
 names(final)
 
@@ -1239,14 +1170,10 @@ mean(filter(final.38, group == "molybdate 38")$larval.area.mm2)/mean(filter(fina
 # [1] 1.148039
 
 
-  
-################################################################
 
 
 
-
-# July 20 2021 - shell mass
-################################################################
+# July 20 2021 - shell mass ----
 
 setwd("/home/rbanker/Desktop/Oyster microbes/shell-data/")
 
@@ -1274,8 +1201,6 @@ ggplot(mass.dat.red, aes(x=bucket, y=mass.mg, fill=treatment))+
 
 #  percent mass increase at 51 days
 ((mean((mass.dat.red %>% filter(treatment == "molybdate") %>% filter(age == 51))$mass.mg) / mean((mass.dat.red %>% filter(treatment == "control") %>% filter(age == 51))$mass.mg)) * 100)-100
-
-
 
 
 # mixed linear model
@@ -1306,6 +1231,9 @@ mass.51 <- filter(mass.dat.red, age == 51)
 
 mass.51.aov <- aov(mass.mg ~ treatment, data = mass.51)
 summary(mass.51.aov)
+
+mass.51.ttest <- t.test(mass.mg ~ treatment, data = mass.51)
+mass.51.ttest
 
 ################################################################
 
